@@ -25,6 +25,7 @@ class Linear(object) :
                                 initializer=tf.constant_initializer(0.0))
 
     def __call__(self,input_var,name=None) :
+        # if( input_var.get_shape().dims) > 2 ) :
         if( len(input_var.get_shape().dims) > 2 ) :
             return tf.matmul(tf.reshape(input_var,[tf.shape(input_var)[0],-1]),self.w) + self.b
         else :

@@ -35,9 +35,11 @@ def get_image_batch(pattern, batch_size, train=True) :
 
         image_reader = tf.WholeFileReader()
         filename, image_file = image_reader.read(filename_queue)
-        image = tf.image.decode_jpeg(image_file, 3)
+        # image = tf.image.decode_jpeg(image_file, 3)
+        image = tf.image.decode_png(image_file, 3)
 
-        image.set_shape((258, 258, 3))
+        # image.set_shape((258, 258, 3))
+        image.set_shape((256, 256, 3))
         # Ignore the 3rd dimension, that was only used as padding to save to
         # jpeg.
         #image = tf.slice(image, [0, 0, 0], [258, 258, 2])
