@@ -152,6 +152,23 @@ def ispecgram(spec,
   return np.squeeze(audio / audio.max())
 
 
+def parse_speaker_info(speaker_info_path):
+    header = None
+
+    speaker_info = {}
+    with open(speaker_info_path) as f:
+        for line in f:
+            if header is None:
+                header = line
+            else:
+                parts = line.split('  ')
+                speaker_id = parts[0]
+                gender = parts[2]
+                speaker_info['p' + speaker_id] = gender
+
+    return speaker_info
+
+
 if __name__ == '__main__':
     x, fs = librosa.load("/hdd/cs599/VCTK-Corpus/wav48/p225/p225_039.wav")
 

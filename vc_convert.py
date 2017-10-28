@@ -6,47 +6,64 @@ import scipy.misc
 import util
 import sys
 
-BASE_DATA_PATH = "/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/vcc2016_training/"
+# Sri
+#BASE_DATA_PATH = "/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/vcc2016_training/"
+#SPECTRO_SAVE_PATH = "/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/vcc_processed/"
+
 # CUTOFF_LEN = 258
 CUTOFF_LEN = 256
-SPECTRO_SAVE_PATH = "/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/vcc_processed/"
 
+# Andrew
+SPECTRO_SAVE_PATH = '/hdd/cs599/spectro/'
+BASE_DATA_PATH = '/hdd/cs599/VCTK-Corpus/wav48/'
+SPEAKER_INFO_PATH = '/hdd/cs599/VCTK-Corpus/speaker-info.txt'
+
+
+def cut_audio(S):
+    if S.shape[1] < CUTOFF_LEN:
+        return None
+    cut_audio = S[:, :CUTOFF_LEN, :]
+    padded = np.zeros((258, CUTOFF_LEN, 3))
+    padded[:257, :, :2] = cut_audio
+    cut_audio = np.delete(cut_audio, -1, 0)
+    padded = np.zeros((256, CUTOFF_LEN, 3))
+    padded[:256, :, :2] = cut_audio
+    return padded
 
 if __name__ == '__main__':
-    folder_name = sys.argv[1]
-    print('Loading for speaker %s' % folder_name)
-    folder_path = os.path.join(BASE_DATA_PATH, folder_name)
-    for audio_file in os.listdir(folder_path):
-        # print audio_file
+    if len(sys.argv) > 1:
+        folder_name = sys.argv[1]
+        print('Loading for speaker %s' % folder_name)
+        folders = [folder_name]
+    else:
+        folders = os.listdir(BASE_DATA_PATH)
 
-        x, fs = librosa.load(os.path.join(folder_path,audio_file))
-        S = util.specgram(x)
-        if S.shape[1] < CUTOFF_LEN:
-            continue
-        cut_audio = S[:, :CUTOFF_LEN, :]
-        # padded = np.zeros((258, CUTOFF_LEN, 3))
-        # padded[:257, :, :2] = cut_audio
-        cut_audio = np.delete(cut_audio, -1, 0)
-        padded = np.zeros((256, CUTOFF_LEN, 3))
-        padded[:256, :, :2] = cut_audio
+    speaker_info = util.parse_speaker_info(SPEAKER_INFO_PATH)
 
-        # Reconstructing wav file code
-        # npad = ((0, 1), (0, 0), (0, 0))
-        # padded_proc = np.pad(padded, pad_width=npad, mode='constant', constant_values=0)
-        # audio = util.ispecgram(padded_proc[:257, :, :2])
-        # librosa.output.write_wav('/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/test3.wav', x, fs)
+    for folder_name in folders:
+        folder_path = os.path.join(BASE_DATA_PATH, folder_name)
+        for audio_file in os.listdir(folder_path):
+            x, fs = librosa.load(os.path.join(folder_path,audio_file))
+            S = util.specgram(x)
+            padded = cut_audio(S)
+            if padded is None:
+                continue
 
-        #raise ValueError()
-        # if gender == "M":
-        #     folder = "male/"
-        # elif gender == "F":
-        #     folder = "female/"
-        # else:
-        #     raise ValueError("Could not determine save folder")
+            gender = speaker_info[folder_name]
 
-        audio_file_name = audio_file.split('.')[0]
+            if gender == "M":
+                folder = "male/"
+            elif gender == "F":
+                folder = "female/"
+            else:
+                raise ValueError("Could not determine save folder")
 
-        scipy.misc.imsave(os.path.join(SPECTRO_SAVE_PATH, folder_name, audio_file_name + ".png"), padded)
+            audio_file_name = audio_file.split('.')[0]
 
-        # outfile = os.path.join(SPECTRO_SAVE_PATH, folder_name, audio_file_name + ".png")
-        # scipy.misc.toimage(padded, cmin=0.0, cmax=255).save(outfile)
+            scipy.misc.imsave(os.path.join(SPECTRO_SAVE_PATH, folder,
+                audio_file_name + ".png"), padded)
+
+            outfile = os.path.join(SPECTRO_SAVE_PATH, folder,
+                    audio_file_name + ".png")
+            scipy.misc.toimage(padded, cmin=0.0, cmax=255).save(outfile)
+
