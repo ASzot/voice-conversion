@@ -4,6 +4,8 @@ from ops import *
 from model import *
 import tensorflow as tf
 import dataset
+import glob
+from itertools import chain
 
 import sys
 import os
@@ -17,22 +19,25 @@ random.seed(123)
 # User defined variables
 ##########################################
 TARGET = 'male2female'
-MODEL_FILE = './log/male2female/model.ckpt-100000'
-
+MODEL_FILE = './log/male2female/model.ckpt-10000'
 
 BATCH_SIZE = 1
 A_DIR = '/hdd/cs599/spectro/testA/*'
 B_DIR = '/hdd/cs599/spectro/testB/*'
-RESULT_A_DIR = './results/' + TARGET + '/resultA/'
-RESULT_B_DIR = './results/' + TARGET + '/resultB/'
+RESULT_A_DIR = '/hdd/cs599/spectro/results/resultA/'
+RESULT_B_DIR = '/hdd/cs599/spectro/results/resultB/'
 if not os.path.exists(RESULT_A_DIR): os.makedirs(RESULT_A_DIR)
 if not os.path.exists(RESULT_B_DIR): os.makedirs(RESULT_B_DIR)
 
-#############################################3
+# Remove files in the output
+for removeFile in chain(glob.glob(RESULT_A_DIR + '*'), glob.glob(RESULT_B_DIR + '*')):
+    os.remove(removeFile)
+
+#############################################
 # Define Network
-#############################################3
-f_a,a = dataset.get_image_batch(A_DIR,BATCH_SIZE,300,256,train=False)
-f_b,b = dataset.get_image_batch(B_DIR,BATCH_SIZE,300,256,train=False)
+#############################################
+f_a,a = dataset.get_image_batch(A_DIR, BATCH_SIZE, train=False)
+f_b,b = dataset.get_image_batch(B_DIR, BATCH_SIZE, train=False)
 
 with tf.variable_scope('gen_a_to_b') as a_to_b_scope :
     b_gen = build_enc_dec(a)

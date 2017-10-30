@@ -13,10 +13,10 @@ TARGET = 'male2female'
 
 LOG_DIR = './log/' + TARGET
 
-# A_DIR = '/hdd/cs599/spectro/male/*'
-# B_DIR = '/hdd/cs599/spectro/female/*'
-A_DIR = "/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/vcc_processed/SF1/*"
-B_DIR = "/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/vcc_processed/TF1/*"
+A_DIR = '/hdd/cs599/spectro/male/*'
+B_DIR = '/hdd/cs599/spectro/female/*'
+#A_DIR = "/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/vcc_processed/SF1/*"
+#B_DIR = "/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/vcc_processed/TF1/*"
 
 LEARNING_RATE = 0.0001
 BETA_1 = 0.5
