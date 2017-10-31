@@ -5,10 +5,12 @@ from scipy.ndimage import imread
 import os
 
 
-def from_file(load_spectro_filename):
+def from_file(load_spectro_filename, add_name):
     print('Loading from')
     print(load_spectro_filename)
     spectro = imread(load_spectro_filename)
+    print(np.mean(spectro))
+    print(np.std(spectro))
 
     old_range = 255
     new_range = 2
@@ -19,9 +21,9 @@ def from_file(load_spectro_filename):
     base_name = os.path.basename(load_spectro_filename)
     filename = base_name.split('.')[0]
 
-    from_np(spectro, filename)
+    from_np(spectro, filename, add_name)
 
-def from_np(spectro, filename):
+def from_np(spectro, filename, add_name):
     padded = np.zeros((257, 256, 2))
     padded[:256, :, :] = spectro[:256, :256, :2]
     #padded = spectro
@@ -29,7 +31,9 @@ def from_np(spectro, filename):
     audio = util.ispecgram(padded)
 
     fs = 22050
-    save_filename = '/hdd/cs599/output/%s.wav' % filename
+    #save_filename = '/hdd/cs599/output/%s.wav' % filename
+    save_filename = '/hdd/cs599/spectro/results/output/%s.wav' % (filename +
+            add_name)
     print('Saving to')
     print(save_filename)
     librosa.output.write_wav(save_filename, audio, fs)
@@ -38,11 +42,13 @@ def from_np(spectro, filename):
 if __name__ == "__main__":
     base_path = '/hdd/cs599/spectro/'
     #load_spectro = '/hdd/cs599/spectro/male/p272_046.png'
-    #load_spectro = '/hdd/cs599/spectro/testB/p253_003.png'
     #load_spectro = '/hdd/cs599/spectro/testA/p272_003.png'
 
     #load_spectro = base_path + 'female/p253_003.png'
-    load_spectro = base_path + 'results/resultA/p272_003.png'
+    #load_spectro = base_path + 'results/resultA/p272_003.png'
+    load_spectro = '/hdd/cs599/spectro/testB/p253_003.png'
+    from_file(load_spectro, '_orig')
+    load_spectro = base_path + 'results/resultB/p253_003.png'
 
-    from_file(load_spectro)
+    from_file(load_spectro, '_transformed')
 

@@ -19,7 +19,7 @@ random.seed(123)
 # User defined variables
 ##########################################
 TARGET = 'male2female'
-MODEL_FILE = './log/male2female/model.ckpt-10000'
+MODEL_FILE = './log/male2female/model.ckpt-20000'
 
 BATCH_SIZE = 1
 A_DIR = '/hdd/cs599/spectro/testA/*'
@@ -33,7 +33,7 @@ if not os.path.exists(RESULT_B_DIR): os.makedirs(RESULT_B_DIR)
 for removeFile in chain(glob.glob(RESULT_A_DIR + '*'), glob.glob(RESULT_B_DIR + '*')):
     os.remove(removeFile)
 
-#############################################
+#############################################3
 # Define Network
 #############################################
 f_a,a = dataset.get_image_batch(A_DIR, BATCH_SIZE, train=False)
