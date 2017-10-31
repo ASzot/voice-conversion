@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 import scipy.misc
+import sklearn.utils
 import util
 import sys
 import convert_to_voice
@@ -41,13 +42,16 @@ if __name__ == '__main__':
 
     speaker_info = util.parse_speaker_info(SPEAKER_INFO_PATH)
 
-    for folder_name in folders:
+    folders = sklearn.utils.shuffle(folders)
+
+    for i, folder_name in enumerate(folders):
+        print(float(i) / float(len(folders)))
         folder_path = os.path.join(BASE_DATA_PATH, folder_name)
         for audio_file in os.listdir(folder_path):
-            print(audio_file)
             x, fs = librosa.load(os.path.join(folder_path, audio_file))
             S = util.specgram(x)
             padded = cut_audio(S)
+            #padded = S
             if padded is None:
                 continue
 
@@ -63,12 +67,15 @@ if __name__ == '__main__':
             audio_file_name = audio_file.split('.')[0]
             audio_file_path = os.path.join(SPECTRO_SAVE_PATH, folder,
                 audio_file_name + ".png")
-            print('Saving to ' + audio_file_path)
+            #print('Saving to ' + audio_file_path)
+
+            padded  = (((padded + 1.0) * 255.0) / 2.0)
+            padded = padded.astype(np.uint8)
 
             scipy.misc.imsave(audio_file_path, padded)
 
-            convert_to_voice.from_file(audio_file_path)
-            raise ValueError()
+            #convert_to_voice.from_file(audio_file_path)
+            #raise ValueError()
 
             #outfile = os.path.join(SPECTRO_SAVE_PATH, folder,
             #        audio_file_name + ".png")
