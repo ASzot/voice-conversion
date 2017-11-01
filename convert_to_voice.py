@@ -45,10 +45,11 @@ if __name__ == "__main__":
     #load_spectro = '/hdd/cs599/spectro/testA/p272_003.png'
 
     #load_spectro = base_path + 'female/p253_003.png'
-    #load_spectro = base_path + 'results/resultA/p272_003.png'
-    load_spectro = '/hdd/cs599/spectro/testB/p253_003.png'
-    from_file(load_spectro, '_orig')
-    load_spectro = base_path + 'results/resultB/p253_003.png'
+    #load_spectro = '/hdd/cs599/spectro/testB/p253_003.png'
 
+    load_spectro = base_path + 'results/resultB/p253_003.png'
+    from_file(load_spectro, '_orig')
+
+    load_spectro = base_path + 'results/resultA/p272_003.png'
     from_file(load_spectro, '_transformed')
 

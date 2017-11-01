@@ -12,6 +12,8 @@ random.seed(123)
 TARGET = 'male2female'
 
 LOG_DIR = './log/' + TARGET
+start_iter = 40000
+MODEL_FILE = './log/male2female/model.ckpt-' + str(start_iter)
 
 A_DIR = '/hdd/cs599/spectro/male/*'
 B_DIR = '/hdd/cs599/spectro/female/*'
@@ -144,6 +146,10 @@ saver = tf.train.Saver(max_to_keep = 5)
 sess = tf.Session()
 sess.run([init_op])
 
+if MODEL_FILE is not None:
+    print('RESTORING MODEL')
+    saver.restore(sess, MODEL_FILE)
+
 # if model exist, restore
 """
 #if model exist :
@@ -154,7 +160,7 @@ try:
     summary_writer = tf.summary.FileWriter(LOG_DIR,sess.graph)
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess,coord=coord)
-    for step in range(MAX_ITERATION+1) :
+    for step in range(start_iter, MAX_ITERATION+1):
         if coord.should_stop() :
             break
 
