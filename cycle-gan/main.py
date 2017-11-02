@@ -12,10 +12,10 @@ random.seed(123)
 TARGET = 'male2female'
 
 LOG_DIR = './log/' + TARGET
-#start_iter = 40000
-#MODEL_FILE = './log/male2female/model.ckpt-' + str(start_iter)
-start_iter = 0
-MODEL_FILE = None
+start_iter = 10000
+MODEL_FILE = './log/male2female/model.ckpt-' + str(start_iter)
+#start_iter = 0
+#MODEL_FILE = None
 
 #A_DIR = '/hdd/cs599/spectro/male/*'
 #B_DIR = '/hdd/cs599/spectro/female/*'

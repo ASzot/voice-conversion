@@ -19,13 +19,17 @@ random.seed(123)
 # User defined variables
 ##########################################
 TARGET = 'male2female'
-MODEL_FILE = './log/male2female/model.ckpt-40000'
+MODEL_FILE = './log/male2female/model.ckpt-10000'
 
 BATCH_SIZE = 1
-A_DIR = '/hdd/cs599/spectro/testA/*'
-B_DIR = '/hdd/cs599/spectro/testB/*'
-RESULT_A_DIR = '/hdd/cs599/spectro/results/resultA/'
-RESULT_B_DIR = '/hdd/cs599/spectro/results/resultB/'
+#A_DIR = '/hdd/cs599/spectro/testA/*'
+#B_DIR = '/hdd/cs599/spectro/testB/*'
+#RESULT_A_DIR = '/hdd/cs599/spectro/results/resultA/'
+#RESULT_B_DIR = '/hdd/cs599/spectro/results/resultB/'
+A_DIR = '/home/ubuntu/data/vcc_processed/SF1/*'
+B_DIR = '/home/ubuntu/data/vcc_processed/TF1/*'
+RESULT_A_DIR = '/home/ubuntu/data/results/resultSF1/'
+RESULT_B_DIR = '/home/ubuntu/data/results/resultTF1/'
 if not os.path.exists(RESULT_A_DIR): os.makedirs(RESULT_A_DIR)
 if not os.path.exists(RESULT_B_DIR): os.makedirs(RESULT_B_DIR)
 
