@@ -12,13 +12,15 @@ random.seed(123)
 TARGET = 'male2female'
 
 LOG_DIR = './log/' + TARGET
-start_iter = 40000
-MODEL_FILE = './log/male2female/model.ckpt-' + str(start_iter)
+#start_iter = 40000
+#MODEL_FILE = './log/male2female/model.ckpt-' + str(start_iter)
+start_iter = 0
+MODEL_FILE = None
 
-A_DIR = '/hdd/cs599/spectro/male/*'
-B_DIR = '/hdd/cs599/spectro/female/*'
-#A_DIR = "/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/vcc_processed/SF1/*"
-#B_DIR = "/Users/sriramsomasundaram/Desktop/USC/Fall 2017/CSCI 599/DS_10283_2211/vcc_processed/TF1/*"
+#A_DIR = '/hdd/cs599/spectro/male/*'
+#B_DIR = '/hdd/cs599/spectro/female/*'
+A_DIR = '../../data/vcc_processed/SF1/*'
+B_DIR = '../../data/vcc_processed/TF1/*'
 
 LEARNING_RATE = 0.0001
 BETA_1 = 0.5
@@ -27,7 +29,7 @@ BETA_2 = 0.9
 LAMBDA = 10
 LAMBDA_CYCLE = 10
 
-BATCH_SIZE = 8
+BATCH_SIZE = 1
 
 MAX_ITERATION = 1000000
 SAVE_PERIOD = 10000
@@ -133,7 +135,7 @@ tf.summary.scalar('loss_cycle', loss_cycle)
 summary_op = tf.summary.merge_all()
 
 # Init operation
-init_op = tf.global_variables_initializer()
+init_op = [tf.global_variables_initializer(), tf.local_variables_initializer()]
 
 #################################
 # Train! (summary, init, etc.)
