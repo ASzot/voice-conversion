@@ -47,6 +47,12 @@ if __name__ == "__main__":
 
     #load_spectro = base_path + 'female/p253_003.png'
     #load_spectro = '/hdd/cs599/spectro/testB/p253_003.png'
+    testA = os.path.join(base_path, 'spectro/testA')
+    for filename in os.listdir(testA):
+        load_spectro = os.path.join(testA, filename)
+        from_file(load_spectro, '_orig')
+        load_spectro = os.path.join(base_path, 'results/resultA/', filename)
+        from_file(load_spectro, '_transformed')
 
     load_spectro = base_path + 'vcc_processed/TF1/100005.png'
     from_file(load_spectro, '_orig')
