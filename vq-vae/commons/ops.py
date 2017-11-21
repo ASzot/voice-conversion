@@ -1,5 +1,40 @@
 import tensorflow as tf
 
+class Conv1d(object):
+    def __init__(self,name, input_dim, output_dim, k_w=4, d_w=2, stddev=0.02,
+            data_format='NHWC'):
+        with tf.variable_scope(name) :
+            assert(data_format == 'NCHW' or data_format == 'NHWC')
+            self.w = tf.get_variable('w', [k_w, input_dim, output_dim],
+                    initializer=tf.truncated_normal_initializer(stddev=stddev))
+            self.b = tf.get_variable('b',[output_dim], initializer=tf.constant_initializer(0.0))
+
+            if( data_format == 'NCHW' ) :
+                self.strides = d_w
+            else :
+                self.strides = d_w
+            self.data_format = data_format
+    def __call__(self, input_var, name=None, w=None, b=None, **kwargs) :
+        w = w if w is not None else self.w
+        b = b if b is not None else self.b
+
+        if( self.data_format =='NCHW' ) :
+            return tf.nn.bias_add(
+                    tf.nn.conv1d(input_var, w,
+                        use_cudnn_on_gpu=True,data_format='NCHW',
+                        stride=self.strides, padding='SAME'),
+                    b,data_format='NCHW',name=name)
+        else :
+            return tf.nn.bias_add(
+                    tf.nn.conv1d(input_var, w,data_format='NHWC',
+                        stride=self.strides, padding='SAME'),
+                    b,data_format='NHWC',name=name)
+
+    def get_variables(self):
+        return {'w':self.w,'b':self.b}
+
+
+
 class Conv2d(object):
     def __init__(self,name, input_dim, output_dim, k_h=4, k_w=4, d_h=2, d_w=2,
             stddev=0.02, data_format='NCHW') :

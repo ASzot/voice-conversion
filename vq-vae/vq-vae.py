@@ -11,17 +11,17 @@ from wavenet.model import WaveNetModel
 def _audio_arch(d):
     with tf.variable_scope('enc') as enc_param_scope:
         enc_spec = [
-            Conv2d('conv2d_1', 1, d, k_h=1, k_w=4, d_h=1, d_w=2),
+            Conv1d('conv2d_1', 1, d, k_w=4, d_w=2),
             lambda t,**kwargs : tf.nn.relu(t),
-            Conv2d('conv2d_2', d, d, k_h=1, k_w=4, d_h=1, d_w=2),
+            Conv1d('conv2d_2', d, d, k_w=4, d_w=2),
             lambda t,**kwargs : tf.nn.relu(t),
-            Conv2d('conv2d_3', d, d, k_h=1, k_w=4, d_h=1, d_w=2),
+            Conv1d('conv2d_3', d, d, k_w=4, d_w=2),
             lambda t,**kwargs : tf.nn.relu(t),
-            Conv2d('conv2d_4', d, d, k_h=1, k_w=4, d_h=1, d_w=2),
+            Conv1d('conv2d_4', d, d, k_w=4, d_w=2),
             lambda t,**kwargs : tf.nn.relu(t),
-            Conv2d('conv2d_5', d, d, k_h=1, k_w=4, d_h=1, d_w=2),
+            Conv1d('conv2d_5', d, d, k_w=4, d_w=2),
             lambda t,**kwargs : tf.nn.relu(t),
-            Conv2d('conv2d_6', d, d, k_h=1, k_w=4, d_h=1, d_w=2),
+            Conv1d('conv2d_6', d, d, k_w=4, d_w=2),
         ]
 
     return enc_spec, enc_param_scope, None, None
@@ -58,6 +58,7 @@ class VQVAE():
     def __init__(self, lr, global_step, beta,
                  x,K,D,
                  arch_fn,
+                 is_1d,
                  param_scope,
                  is_training=False):
         with tf.variable_scope(param_scope):
@@ -75,9 +76,16 @@ class VQVAE():
 
             # Middle Area (Compression or Discretize)
             # TODO: Gross.. use brodcast instead!
-            _t = tf.tile(tf.expand_dims(z_e, -2),[1,1,1,K,1]) #[batch,latent_h,latent_w,K,D]
-            _e = tf.reshape(embeds, [1,1,1,K,D])
-            _t = tf.norm(_t - _e, axis=-1)
+
+            if is_1d:
+                tile_arr = [1, 1, K, 1]
+                reshape_arr = [1, 1, K, D]
+            else:
+                tile_arr = [1, 1, 1, K, 1]
+                reshape_arr = [1, 1, K, D]
+            _t = tf.tile(tf.expand_dims(z_e, -2),tile_arr) #[batch,latent_h,latent_w,K,D]
+            _e = tf.reshape(embeds, reshape_arr)
+            _t = tf.norm(_t - _e, axis = -1)
             k = tf.argmin(_t, axis = -1) # -> [latent_h,latent_w]
             z_q = tf.gather(embeds, k)
 
@@ -186,16 +194,27 @@ if __name__ == "__main__":
 
     global_step = tf.Variable(0, trainable=False)
 
-    net = VQVAE(0.1, global_step, 0.25, audio_batch, 20, 256, _audio_arch, params, True)
+    sess = tf.Session(config=tf.ConfigProto(log_device_placement=False))
+    init = tf.global_variables_initializer()
+    sess.run(init)
 
-    init_op = tf.group(tf.global_variables_initializer(),
-                    tf.local_variables_initializer())
+    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+    reader.start_threads(sess)
 
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    sess = tf.Session(config=config)
-    sess.graph.finalize()
-    sess.run(init_op)
+    try:
+        is_2d = True
+        net = VQVAE(0.1, global_step, 0.25, audio_batch, 20, 256, _audio_arch,
+                is_2d, params, True)
+    except KeyboardInterrupt:
+        # Introduce a line break after ^C is displayed so save message
+        # is on its own line.
+        print()
+    finally:
+        coord.request_stop()
+        coord.join(threads)
 
-    print(sess.run(net.train_op, feed_dict={x:np.random.random((10,32,32,1))}))
+
+
+
+    #print(sess.run(net.train_op, feed_dict={x:np.random.random((10,32,32,1))}))
 
