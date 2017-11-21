@@ -11,17 +11,17 @@ from wavenet.model import WaveNetModel
 def _audio_arch(d):
     with tf.variable_scope('enc') as enc_param_scope:
         enc_spec = [
-            Conv1d('conv2d_1', 1, d, k_w=4, d_w=2),
+            Conv1d('conv1d_1', 1, d, k_w=4, d_w=2),
             lambda t,**kwargs : tf.nn.relu(t),
-            Conv1d('conv2d_2', d, d, k_w=4, d_w=2),
+            Conv1d('conv1d_2', d, d, k_w=4, d_w=2),
             lambda t,**kwargs : tf.nn.relu(t),
-            Conv1d('conv2d_3', d, d, k_w=4, d_w=2),
+            Conv1d('conv1d_3', d, d, k_w=4, d_w=2),
             lambda t,**kwargs : tf.nn.relu(t),
-            Conv1d('conv2d_4', d, d, k_w=4, d_w=2),
+            Conv1d('conv1d_4', d, d, k_w=4, d_w=2),
             lambda t,**kwargs : tf.nn.relu(t),
-            Conv1d('conv2d_5', d, d, k_w=4, d_w=2),
+            Conv1d('conv1d_5', d, d, k_w=4, d_w=2),
             lambda t,**kwargs : tf.nn.relu(t),
-            Conv1d('conv2d_6', d, d, k_w=4, d_w=2),
+            Conv1d('conv1d_6', d, d, k_w=4, d_w=2),
         ]
 
     return enc_spec, enc_param_scope, None, None
@@ -59,6 +59,7 @@ class VQVAE():
                  x,K,D,
                  arch_fn,
                  is_1d,
+                 sess,
                  param_scope,
                  is_training=False):
         with tf.variable_scope(param_scope):
@@ -93,9 +94,12 @@ class VQVAE():
             self.k = k
             self.z_q = z_q # -> [batch,latent_h,latent_w,D]
 
-            print(self.z_e)
-            print(self.z_q)
-            raise ValueError()
+            #print(sess.run(self.z_e).shape)
+            #print(sess.run(self.z_q).shape)
+            #raise ValueError()
+
+            # End early
+            return
 
             # Decoder Pass
             _t = z_q
@@ -195,16 +199,20 @@ if __name__ == "__main__":
     global_step = tf.Variable(0, trainable=False)
 
     sess = tf.Session(config=tf.ConfigProto(log_device_placement=False))
-    init = tf.global_variables_initializer()
-    sess.run(init)
-
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
     reader.start_threads(sess)
 
     try:
+
         is_2d = True
         net = VQVAE(0.1, global_step, 0.25, audio_batch, 20, 256, _audio_arch,
-                is_2d, params, True)
+                is_2d, sess, params, True)
+
+        init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+        sess.run(init)
+
+        print(sess.run(net.z_e).shape)
+        print(sess.run(net.z_q).shape)
     except KeyboardInterrupt:
         # Introduce a line break after ^C is displayed so save message
         # is on its own line.

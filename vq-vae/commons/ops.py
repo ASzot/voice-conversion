@@ -14,6 +14,7 @@ class Conv1d(object):
             else :
                 self.strides = d_w
             self.data_format = data_format
+
     def __call__(self, input_var, name=None, w=None, b=None, **kwargs) :
         w = w if w is not None else self.w
         b = b if b is not None else self.b
