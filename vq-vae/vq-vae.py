@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 from commons.ops import *
 import json
+from utils import mu_law
 
 from wavenet.audio_reader import AudioReader
 from wavenet.model import WaveNetModel
@@ -70,10 +71,16 @@ class VQVAE():
 
         with tf.variable_scope('forward') as forward_scope:
             # Encoder Pass
-            _t = x
+            x_quantized = mu_law(x)
+            x_scaled = tf.cast(x_quantized, tf.float32) / 128.0
+            #x_scaled = tf.expand_dims(x_scaled, 2)
+            #self.x_scaled = x_scaled
+
+            _t = x_scaled
             for block in enc_spec :
                 _t = block(_t)
             z_e = _t
+            self.tmp_z_e = z_e
 
             # Middle Area (Compression or Discretize)
             # TODO: Gross.. use brodcast instead!
@@ -88,6 +95,7 @@ class VQVAE():
             _e = tf.reshape(embeds, reshape_arr)
             _t = tf.norm(_t - _e, axis = -1)
             k = tf.argmin(_t, axis = -1) # -> [latent_h,latent_w]
+            self.k = k
             z_q = tf.gather(embeds, k)
 
             self.z_e = z_e # -> [batch,latent_h,latent_w,D]
@@ -205,14 +213,18 @@ if __name__ == "__main__":
     try:
 
         is_2d = True
-        net = VQVAE(0.1, global_step, 0.25, audio_batch, 20, 256, _audio_arch,
+        net = VQVAE(0.1, global_step, 0.25, audio_batch, 380, 256, _audio_arch,
                 is_2d, sess, params, True)
 
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         sess.run(init)
 
+        #print(sess.run(net.x_scaled).shape)
+        print(sess.run(audio_batch).shape)
+        print(sess.run(net.tmp_z_e).shape)
         print(sess.run(net.z_e).shape)
         print(sess.run(net.z_q).shape)
+        print(sess.run(net.k).shape)
     except KeyboardInterrupt:
         # Introduce a line break after ^C is displayed so save message
         # is on its own line.

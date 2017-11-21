@@ -83,6 +83,20 @@ def not_all_have_id(files):
             return True
     return False
 
+def mu_law(x, mu=255, int8=False):
+    """A TF implementation of Mu-Law encoding.
+  Args:
+    x: The audio samples to encode.
+    mu: The Mu to use in our Mu-Law.
+    int8: Use int8 encoding.
+  Returns:
+    out: The Mu-Law encoded int8 data.
+  """
+    out = tf.sign(x) * tf.log(1 + mu * tf.abs(x)) / np.log(1 + mu)
+    out = tf.floor(out * 128)
+    if int8:
+        out = tf.cast(out, tf.int8)
+    return out
 
 class AudioReader(object):
     '''Generic background audio reader that preprocesses audio files
@@ -142,6 +156,21 @@ class AudioReader(object):
                   self.gc_category_cardinality))
         else:
             self.gc_category_cardinality = None
+
+    def _one_hot(self, input_batch, quant_channels, num_eles):
+        '''One-hot encodes the waveform amplitudes.
+
+        This allows the definition of the network as a categorical distribution
+        over a finite set of possible amplitudes.
+        '''
+        with tf.name_scope('one_hot_encode'):
+            encoded = tf.one_hot(
+                input_batch,
+                depth=quant_channels,
+                dtype=tf.float32)
+            shape = [num_eles, -1, quant_channels]
+            encoded = tf.reshape(encoded, shape)
+        return encoded
 
     def dequeue(self, num_elements):
         output = self.queue.dequeue_many(num_elements)
