@@ -53,3 +53,17 @@ def conv1d(x,
   y = batch_to_time(y, dilation)
   y.set_shape([batch_size, length, num_filters])
   return y
+
+
+def shift_right(x):
+  """Shift the input over by one and a zero to the front.
+  Args:
+    x: The [mb, time, channels] tensor input.
+  Returns:
+    x_sliced: The [mb, time, channels] tensor output.
+  """
+  shape = x.get_shape().as_list()
+  x_padded = tf.pad(x, [[0, 0], [1, 0], [0, 0]])
+  x_sliced = tf.slice(x_padded, [0, 0, 0], tf.stack([-1, shape[1], -1]))
+  x_sliced.set_shape(shape)
+  return x_sliced

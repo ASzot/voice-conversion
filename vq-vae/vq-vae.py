@@ -1,6 +1,7 @@
 from six.moves import xrange
 import better_exceptions
 import tensorflow as tf
+import masked
 import numpy as np
 from commons.ops import *
 import json
@@ -50,11 +51,14 @@ def _mnist_arch(d):
 
 
 class VQVAE():
-    """
-    lr: learning rate.
-    x: input tensor.
-    K: Number of embeddings.
-    D: Dimension of embedding.
+    """ Class for VQ-VAE architecture
+
+    Parameters:
+        lr (float)  learning rate.
+        x (batch_size, time(?), ?) input tensor.
+        K (int)     Number of embeddings.
+        D (int)     Dimension of embedding.
+
     """
     def __init__(self, lr, global_step, beta,
                  x,K,D,
@@ -74,6 +78,7 @@ class VQVAE():
             x_quantized = mu_law(x)
             x_scaled = tf.cast(x_quantized, tf.float32) / 128.0
             #x_scaled = tf.expand_dims(x_scaled, 2)
+            # Why are we not expanding dim here? b/c we are defaulting to batch size of 1?
             #self.x_scaled = x_scaled
 
             _t = x_scaled
@@ -111,6 +116,28 @@ class VQVAE():
 
             # Decoder Pass
             _t = z_q
+
+            num_stages = 10
+            num_layers = 30
+            filter_length = 3
+            width = 512
+            skip_width = 256
+            # May need to have x be an expanded dim
+            l = masked.shift_right(x)
+            l = masked.conv1d(l, num_filters=width, filter_length=filter_length, name='startconv_dec')
+
+            # Skip connection
+            s = masked.conv1d(l, num_filters=skip_width, filter_length=1, name='skip_start_dec')
+
+            # Residual blocks with skip connection
+            for i in xrange(num_layers):
+                dilation = 2**(i % num_stages)
+                d = masked.conv1d(l, num_filters=2*width, filter_length=filter_length, 
+                    dilation=dilation, name='dilatedconv_%d' % (i+1))
+                d = self._condition()
+
+
+
             for block in dec_spec:
                 _t = block(_t)
             self.p_x_z = _t
@@ -161,6 +188,27 @@ class VQVAE():
 
         self.saver = tf.train.Saver(var_list=save_vars,max_to_keep = 3)
 
+    @staticmethod
+    def _condition(x, encoding):
+        """Condition the input on the encoding.
+        Args:
+        x: The [mb, length, channels] float tensor input.
+        encoding: The [mb, encoding_length, channels] float tensor encoding.
+        Returns:
+        The output after broadcasting the encoding to x's shape and adding them.
+        """
+        mb, length, channels = x.get_shape().as_list()
+        enc_mb, enc_length, enc_channels = encoding.get_shape().as_list()
+        assert enc_mb == mb
+        assert enc_channels == channels
+
+        encoding = tf.reshape(encoding, [mb, enc_length, 1, channels])
+        x = tf.reshape(x, [mb, enc_length, -1, channels])
+        x += encoding
+        x = tf.reshape(x, [mb, length, channels])
+        x.set_shape([mb, length, channels])
+        return x
+      
     def save(self, sess, dir, step=None):
         if(step is not None):
             self.saver.save(sess, dir + '/model.ckpt', global_step=step)
