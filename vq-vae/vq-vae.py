@@ -87,7 +87,6 @@ class VQVAE():
             # Middle Area (Compression or Discretize)
             # TODO: Gross.. use brodcast instead!
 
-
             _t = tf.tile(tf.expand_dims(z_e, -2), [1, 1, K, 1]) #[batch,latent_h,latent_w,K,D]
             _e = tf.reshape(embeds, [1, 1, K, D])
             _t = tf.norm(_t - _e, axis = -1)
@@ -116,41 +115,43 @@ class VQVAE():
             width = 512
             skip_width = 256
 
-            # May need to have x be an expanded dim
-            l = masked.shift_right(x_scaled)
-            l = masked.conv1d(l, num_filters=width, filter_length=filter_length, name='startconv_dec')
+            with tf.variable_scope('dec') as dec_param_scope:
+                # May need to have x be an expanded dim
+                l = masked.shift_right(x_scaled)
+                l = masked.conv1d(l, num_filters=width, filter_length=filter_length, name='startconv_dec')
 
-            # Skip connection
-            s = masked.conv1d(l, num_filters=skip_width, filter_length=1, name='skip_start_dec')
+                # Skip connection
+                s = masked.conv1d(l, num_filters=skip_width, filter_length=1, name='skip_start_dec')
 
-            # Residual blocks with skip connection
-            for i in xrange(num_layers):
-                dilation = 2 ** (i % num_stages)
-                d = masked.conv1d(l, num_filters = 2 * width, filter_length = filter_length,
-                    dilation = dilation, name = 'dilatedconv_%d' % (i+1))
+                # Residual blocks with skip connection
+                for i in xrange(num_layers):
+                    dilation = 2 ** (i % num_stages)
+                    d = masked.conv1d(l, num_filters = 2 * width, filter_length = filter_length,
+                        dilation = dilation, name = 'dilatedconv_%d' % (i+1))
 
-                # Condition on z_q
-                d = self._condition(d, masked.conv1d(_t, num_filters=2*width, filter_length=1, name='cond_map_%d' % (i+1)))
-                assert d.get_shape().as_list()[2] % 2 == 0
-                m = d.get_shape().as_list()[2] // 2
-                d_sigmoid = tf.sigmoid(d[:, :, :m])
-                d_tanh = tf.tanh(d[:, :, m:])
-                d = d_sigmoid * d_tanh
+                    # Condition on z_q
+                    d = self._condition(d, masked.conv1d(_t, num_filters=2*width, filter_length=1, name='cond_map_%d' % (i+1)))
+                    assert d.get_shape().as_list()[2] % 2 == 0
+                    m = d.get_shape().as_list()[2] // 2
+                    d_sigmoid = tf.sigmoid(d[:, :, :m])
+                    d_tanh = tf.tanh(d[:, :, m:])
+                    d = d_sigmoid * d_tanh
 
-                l += masked.conv1d(d, num_filters=width, filter_length=1, name='res_%d' % (i+1))
-                s += masked.conv1d(d, num_filters=skip_width, filter_length=1, name='skip_%d' % (i+1))
+                    l += masked.conv1d(d, num_filters=width, filter_length=1, name='res_%d' % (i+1))
+                    s += masked.conv1d(d, num_filters=skip_width, filter_length=1, name='skip_%d' % (i+1))
 
-            s = tf.nn.relu(s)
-            s = masked.conv1d(s, num_filters=skip_width, filter_length=1, name='out1')
-            # Condition on z_q again.
-            s = self._condition(s, masked.conv1d(_t, num_filters=skip_width, filter_length=1, name='cond_map_out1'))
-            s = tf.nn.relu(s)
+                s = tf.nn.relu(s)
+                s = masked.conv1d(s, num_filters=skip_width, filter_length=1, name='out1')
+                # Condition on z_q again.
+                s = self._condition(s, masked.conv1d(_t, num_filters=skip_width, filter_length=1, name='cond_map_out1'))
+                s = tf.nn.relu(s)
 
-            self.p_x_z = s
+                self.p_x_z = s
+                # Should this parameter be trainable...?
+                logits = masked.conv1d(self.p_x_z, num_filters=256, filter_length=1, name='logits')
 
             # Losses
             # CHECK AXES FOR REDUCE MEAN ON RECON LOSS
-            logits = masked.conv1d(self.p_x_z, num_filters=256, filter_length=1, name='logits')
             logits = tf.reshape(logits, [-1, 256])
             #probs = tf.nn.softmax(logits, name='softmax')
             x_indices = tf.cast(tf.reshape(x_quantized, [-1]), tf.int32) + 128
@@ -181,14 +182,12 @@ class VQVAE():
             # in front of log(1/K) if we assume uniform prior on z.
             self.nll = -1.*(tf.reduce_mean(tf.log(self.p_x_z),axis=[1,2]) + tf.log(1/tf.cast(K,tf.float32)))/tf.log(2.)
 
-            # return early
-            return
-
         if( is_training ):
             with tf.variable_scope('backward'):
                 # Decoder Grads
-                decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,dec_param_scope.name)
+                decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, dec_param_scope.name)
                 decoder_grads = list(zip(tf.gradients(self.loss,decoder_vars),decoder_vars))
+
                 # Encoder Grads
                 encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,enc_param_scope.name)
                 grad_z = tf.gradients(self.recon,z_q)
@@ -207,12 +206,12 @@ class VQVAE():
                 _t = block(_t)
             self.gen = _t
 
-        save_vars = {('train/'+'/'.join(var.name.split('/')[1:])).split(':')[0] : var for var in
-                     tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,param_scope.name) }
-        #for name,var in save_vars.items():
-        #    print(name,var)
+        #save_vars = {('train/'+'/'.join(var.name.split('/')[1:])).split(':')[0] : var for var in
+        #             tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,param_scope.name) }
+        ##for name,var in save_vars.items():
+        ##    print(name,var)
 
-        self.saver = tf.train.Saver(var_list=save_vars,max_to_keep = 3)
+        #self.saver = tf.train.Saver(var_list=save_vars,max_to_keep = 3)
 
     @staticmethod
     def _condition(x, encoding):
