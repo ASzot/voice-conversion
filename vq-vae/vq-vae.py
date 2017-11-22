@@ -117,8 +117,13 @@ class VQVAE():
             # Decoder Pass
             _t = z_q
 
+            # THINGS TO DO
+            # 1. check if x is right dimension, no need to expand dim?
+            # 2. check if s is same dim as x
+            # 3. add conditional on speaker id (can do after reconstruction)
+
             num_stages = 10
-            num_layers = 30 # Could 
+            num_layers = 30 # Could lower the amount of layers
             filter_length = 3
             width = 512
             skip_width = 256
@@ -134,7 +139,7 @@ class VQVAE():
                 dilation = 2**(i % num_stages)
                 d = masked.conv1d(l, num_filters=2*width, filter_length=filter_length, 
                     dilation=dilation, name='dilatedconv_%d' % (i+1))
-                # This is where z_q is incorporated
+                # z_q is incorporated
                 d = self._condition(d, masked.conv1d(_t, num_filters=2*width, filter_length=1, name='cond_map_%d' % (i+1)))
                 assert d.get_shape().as_list()[2] % 2 == 0
                 m = d.get_shape().as_list()[2] // 2
@@ -147,6 +152,7 @@ class VQVAE():
 
             s = tf.nn.relu(s)
             s = masked.conv1d(s, num_filters=skip_width, filter_length=1, name='out1')
+            # z_q is incorporated
             s = self._condition(s, masked.conv1d(_t, num_filters=skip_width, filter_length=1, name='cond_map_out1'))
             s = tf.nn.relu(s)
 
