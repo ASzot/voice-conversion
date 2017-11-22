@@ -85,19 +85,12 @@ class VQVAE():
             for block in enc_spec :
                 _t = block(_t)
             z_e = _t
-            self.tmp_z_e = z_e
 
             # Middle Area (Compression or Discretize)
             # TODO: Gross.. use brodcast instead!
 
-            if is_1d:
-                tile_arr = [1, 1, K, 1]
-                reshape_arr = [1, 1, K, D]
-            else:
-                tile_arr = [1, 1, 1, K, 1]
-                reshape_arr = [1, 1, K, D]
-            _t = tf.tile(tf.expand_dims(z_e, -2),tile_arr) #[batch,latent_h,latent_w,K,D]
-            _e = tf.reshape(embeds, reshape_arr)
+            _t = tf.tile(tf.expand_dims(z_e, -2), [1, 1, K, 1]) #[batch,latent_h,latent_w,K,D]
+            _e = tf.reshape(embeds, [1, 1, K, D])
             _t = tf.norm(_t - _e, axis = -1)
             k = tf.argmin(_t, axis = -1) # -> [latent_h,latent_w]
             self.k = k
@@ -122,13 +115,14 @@ class VQVAE():
             # 2. check if s is same dim as x
             # 3. add conditional on speaker id (can do after reconstruction)
 
-            num_stages = 10
+            num_stages = 10 # Has to do with dilation stages
             num_layers = 30 # Could lower the amount of layers
             filter_length = 3
             width = 512
             skip_width = 256
+
             # May need to have x be an expanded dim
-            l = masked.shift_right(x)
+            l = masked.shift_right(x_scaled)
             l = masked.conv1d(l, num_filters=width, filter_length=filter_length, name='startconv_dec')
 
             # Skip connection
@@ -136,10 +130,11 @@ class VQVAE():
 
             # Residual blocks with skip connection
             for i in xrange(num_layers):
-                dilation = 2**(i % num_stages)
-                d = masked.conv1d(l, num_filters=2*width, filter_length=filter_length, 
-                    dilation=dilation, name='dilatedconv_%d' % (i+1))
-                # z_q is incorporated
+                dilation = 2 ** (i % num_stages)
+                d = masked.conv1d(l, num_filters = 2 * width, filter_length = filter_length,
+                    dilation = dilation, name = 'dilatedconv_%d' % (i+1))
+
+                # Condition on z_q
                 d = self._condition(d, masked.conv1d(_t, num_filters=2*width, filter_length=1, name='cond_map_%d' % (i+1)))
                 assert d.get_shape().as_list()[2] % 2 == 0
                 m = d.get_shape().as_list()[2] // 2
@@ -152,21 +147,30 @@ class VQVAE():
 
             s = tf.nn.relu(s)
             s = masked.conv1d(s, num_filters=skip_width, filter_length=1, name='out1')
-            # z_q is incorporated
+            # Condition on z_q again.
             s = self._condition(s, masked.conv1d(_t, num_filters=skip_width, filter_length=1, name='cond_map_out1'))
             s = tf.nn.relu(s)
 
-                # Not sure what to do here
-
-
-            # for block in dec_spec:
-            #     _t = block(_t)
             self.p_x_z = s
 
             # Losses
             # CHECK AXES FOR REDUCE MEAN ON RECON LOSS
+            logits = masked.conv1d(self.p_x_z, num_filters=256, filter_length=1, name='logits')
+            logits = tf.reshape(logits, [-1, 256])
+            probs = tf.nn.softmax(logits, name='softmax')
+            x_indices = tf.cast(tf.reshape(x_quantized, [-1]), tf.int32) + 128
 
-            self.recon = tf.reduce_mean((self.p_x_z - x) ** 2, axis=[0,1,2,3])
+            self.x_indices = x_indices
+            # stop early
+            return
+
+            self.recon = tf.reduce_mean(
+                    tf.nn.sparse_softmax_cross_entropy_with_logits(
+                        logits=logits, labels=x_indices, name='nll'),
+                    0, name='recon_loss')
+
+            # Reconstruction loss for images.
+            #self.recon = tf.reduce_mean((self.p_x_z - x) ** 2, axis=[0,1,2,3])
             self.vq = tf.reduce_mean(
                 tf.norm(tf.stop_gradient(self.z_e) - z_q, axis=-1) ** 2,
                 axis=[0,1,2])
@@ -276,13 +280,13 @@ if __name__ == "__main__":
             gc_id_batch = None
 
     global_step = tf.Variable(0, trainable=False)
+    raise ValueError()
 
     sess = tf.Session(config=tf.ConfigProto(log_device_placement=False))
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
     reader.start_threads(sess)
 
     try:
-
         is_2d = True
         net = VQVAE(0.1, global_step, 0.25, audio_batch, 380, 256, _audio_arch,
                 is_2d, sess, params, True)
@@ -292,10 +296,9 @@ if __name__ == "__main__":
 
         #print(sess.run(net.x_scaled).shape)
         print(sess.run(audio_batch).shape)
-        print(sess.run(net.tmp_z_e).shape)
-        print(sess.run(net.z_e).shape)
         print(sess.run(net.z_q).shape)
-        print(sess.run(net.k).shape)
+        print(sess.run(net.p_x_z).shape)
+        print(sess.run(net.x_indices).shape)
     except KeyboardInterrupt:
         # Introduce a line break after ^C is displayed so save message
         # is on its own line.
