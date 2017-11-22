@@ -104,10 +104,15 @@ class AudioReader(object):
         self.silence_threshold = silence_threshold
         self.gc_enabled = gc_enabled
         self.threads = []
-        self.sample_placeholder = tf.placeholder(dtype=tf.float32, shape=None)
+
+        length_shape = self.sample_size + self.receptive_field
+
+        # Now fix the size of the inputs
+        self.sample_placeholder = tf.placeholder(dtype=tf.float32,
+                shape=(length_shape, 1))
         self.queue = tf.PaddingFIFOQueue(queue_size,
                                          ['float32'],
-                                         shapes=[(None, 1)])
+                                         shapes=[(length_shape, 1)])
         self.enqueue = self.queue.enqueue([self.sample_placeholder])
 
         if self.gc_enabled:
@@ -189,12 +194,18 @@ class AudioReader(object):
                 if self.sample_size:
                     # Cut samples into pieces of size receptive_field +
                     # sample_size with receptive_field overlap
-                    while len(audio) > self.receptive_field:
+
+                    # Ignore samples that are less than the sample size.
+
+                    # self.receptive_field + self.sample_size will make sure
+                    # fix the size of the audio.
+                    while len(audio) > self.receptive_field + self.sample_size:
                         piece = audio[:(self.receptive_field +
                                         self.sample_size), :]
                         sess.run(self.enqueue,
                                  feed_dict={self.sample_placeholder: piece})
                         audio = audio[self.sample_size:, :]
+
                         if self.gc_enabled:
                             sess.run(self.gc_enqueue, feed_dict={
                                 self.id_placeholder: category_id})

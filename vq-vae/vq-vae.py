@@ -1,7 +1,7 @@
 from six.moves import xrange
 import better_exceptions
 import tensorflow as tf
-import masked
+from commons import masked
 import numpy as np
 from commons.ops import *
 import json
@@ -76,7 +76,6 @@ class VQVAE():
             # Encoder Pass
             x_quantized = mu_law(x)
             x_scaled = tf.cast(x_quantized, tf.float32) / 128.0
-            #x_scaled = tf.expand_dims(x_scaled, 2)
             # Why are we not expanding dim here? b/c we are defaulting to batch size of 1?
             #self.x_scaled = x_scaled
 
@@ -99,10 +98,6 @@ class VQVAE():
             self.k = k
             self.z_q = z_q # -> [batch,latent_h,latent_w,D]
 
-            #print(sess.run(self.z_e).shape)
-            #print(sess.run(self.z_q).shape)
-            #raise ValueError()
-
             # End early
             return
 
@@ -121,6 +116,7 @@ class VQVAE():
             skip_width = 256
 
             # May need to have x be an expanded dim
+            print(x_scaled)
             l = masked.shift_right(x_scaled)
             l = masked.conv1d(l, num_filters=width, filter_length=filter_length, name='startconv_dec')
 
@@ -259,9 +255,11 @@ if __name__ == "__main__":
         # zero.
         silence_threshold = None
 
+        AUDIO_FILE_PATH = '/Users/andrewszot/Downloads/VCTK-Corpus'
+
         gc_enabled = False
         reader = AudioReader(
-            '/hdd/cs599/VCTK-Corpus',
+            AUDIO_FILE_PATH,
             coord,
             sample_rate=wavenet_params['sample_rate'],
             gc_enabled=gc_enabled,
@@ -269,7 +267,7 @@ if __name__ == "__main__":
                                                                    wavenet_params["dilations"],
                                                                    wavenet_params["scalar_input"],
                                                                    wavenet_params["initial_filter_width"]),
-            sample_size=100000,
+            sample_size=40000,
             silence_threshold=silence_threshold)
 
         audio_batch = reader.dequeue(1)
@@ -279,7 +277,6 @@ if __name__ == "__main__":
             gc_id_batch = None
 
     global_step = tf.Variable(0, trainable=False)
-    raise ValueError()
 
     sess = tf.Session(config=tf.ConfigProto(log_device_placement=False))
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
@@ -293,10 +290,10 @@ if __name__ == "__main__":
         sess.run(init)
 
         #print(sess.run(net.x_scaled).shape)
-        print(sess.run(audio_batch).shape)
-        print(sess.run(net.z_q).shape)
-        print(sess.run(net.p_x_z).shape)
-        print(sess.run(net.x_indices).shape)
+        print('Audio batch: ' + str(sess.run(audio_batch).shape))
+        print('z_q: ' + str(sess.run(net.z_q).shape))
+        #print(sess.run(net.p_x_z).shape)
+        #print(sess.run(net.x_indices).shape)
     except KeyboardInterrupt:
         # Introduce a line break after ^C is displayed so save message
         # is on its own line.
