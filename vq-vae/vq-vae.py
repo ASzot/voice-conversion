@@ -87,6 +87,7 @@ class VQVAE():
             # Middle Area (Compression or Discretize)
             # TODO: Gross.. use brodcast instead!
 
+
             _t = tf.tile(tf.expand_dims(z_e, -2), [1, 1, K, 1]) #[batch,latent_h,latent_w,K,D]
             _e = tf.reshape(embeds, [1, 1, K, D])
             _t = tf.norm(_t - _e, axis = -1)
@@ -99,7 +100,7 @@ class VQVAE():
             self.z_q = z_q # -> [batch,latent_h,latent_w,D]
 
             # End early
-            return
+            #return
 
             # Decoder Pass
             _t = z_q
@@ -116,7 +117,6 @@ class VQVAE():
             skip_width = 256
 
             # May need to have x be an expanded dim
-            print(x_scaled)
             l = masked.shift_right(x_scaled)
             l = masked.conv1d(l, num_filters=width, filter_length=filter_length, name='startconv_dec')
 
@@ -152,12 +152,11 @@ class VQVAE():
             # CHECK AXES FOR REDUCE MEAN ON RECON LOSS
             logits = masked.conv1d(self.p_x_z, num_filters=256, filter_length=1, name='logits')
             logits = tf.reshape(logits, [-1, 256])
-            probs = tf.nn.softmax(logits, name='softmax')
+            #probs = tf.nn.softmax(logits, name='softmax')
             x_indices = tf.cast(tf.reshape(x_quantized, [-1]), tf.int32) + 128
 
+            self.logits = logits
             self.x_indices = x_indices
-            # stop early
-            return
 
             self.recon = tf.reduce_mean(
                     tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -166,19 +165,24 @@ class VQVAE():
 
             # Reconstruction loss for images.
             #self.recon = tf.reduce_mean((self.p_x_z - x) ** 2, axis=[0,1,2,3])
-            self.vq = tf.reduce_mean(
-                tf.norm(tf.stop_gradient(self.z_e) - z_q, axis=-1) ** 2,
-                axis=[0,1,2])
+
+            sg_e = tf.stop_gradient(self.z_e)
+            sg_norm = tf.norm(sg_e - z_q, axis=-1) ** 2
+
+            self.vq = tf.reduce_mean(sg_norm, axis=[0,1])
             self.commit = tf.reduce_mean(
                 tf.norm(self.z_e - tf.stop_gradient(z_q), axis=-1) ** 2,
-                axis=[0,1,2])
+                axis=[0,1])
             self.loss = self.recon + self.vq + beta * self.commit
 
             # NLL
             # TODO: is it correct impl?
             # it seems tf.reduce_prod(tf.shape(self.z_q)[1:2]) should be multipled
             # in front of log(1/K) if we assume uniform prior on z.
-            self.nll = -1.*(tf.reduce_mean(tf.log(self.p_x_z),axis=[1,2,3]) + tf.log(1/tf.cast(K,tf.float32)))/tf.log(2.)
+            self.nll = -1.*(tf.reduce_mean(tf.log(self.p_x_z),axis=[1,2]) + tf.log(1/tf.cast(K,tf.float32)))/tf.log(2.)
+
+            # return early
+            return
 
         if( is_training ):
             with tf.variable_scope('backward'):
@@ -225,6 +229,7 @@ class VQVAE():
         assert enc_channels == channels
 
         encoding = tf.reshape(encoding, [mb, enc_length, 1, channels])
+
         x = tf.reshape(x, [mb, enc_length, -1, channels])
         x += encoding
         x = tf.reshape(x, [mb, length, channels])
@@ -267,7 +272,7 @@ if __name__ == "__main__":
                                                                    wavenet_params["dilations"],
                                                                    wavenet_params["scalar_input"],
                                                                    wavenet_params["initial_filter_width"]),
-            sample_size=40000,
+            sample_size=39939,
             silence_threshold=silence_threshold)
 
         audio_batch = reader.dequeue(1)
@@ -290,10 +295,10 @@ if __name__ == "__main__":
         sess.run(init)
 
         #print(sess.run(net.x_scaled).shape)
-        print('Audio batch: ' + str(sess.run(audio_batch).shape))
-        print('z_q: ' + str(sess.run(net.z_q).shape))
-        #print(sess.run(net.p_x_z).shape)
-        #print(sess.run(net.x_indices).shape)
+        #print('Audio batch: ' + str(sess.run(audio_batch).shape))
+        #print('z_q: ' + str(sess.run(net.z_q).shape))
+        #print('Logits: ' + str(sess.run(net.logits).shape))
+        #print('x_indices: ' + str(sess.run(net.x_indices).shape))
     except KeyboardInterrupt:
         # Introduce a line break after ^C is displayed so save message
         # is on its own line.

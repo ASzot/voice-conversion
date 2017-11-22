@@ -4,6 +4,64 @@ from __future__ import print_function
 
 import tensorflow as tf
 
+def time_to_batch(x, block_size):
+  """Splits time dimension (i.e. dimension 1) of `x` into batches.
+  Within each batch element, the `k*block_size` time steps are transposed,
+  so that the `k` time steps in each output batch element are offset by
+  `block_size` from each other.
+  The number of input time steps must be a multiple of `block_size`.
+  Args:
+    x: Tensor of shape [nb, k*block_size, n] for some natural number k.
+    block_size: number of time steps (i.e. size of dimension 1) in the output
+      tensor.
+  Returns:
+    Tensor of shape [nb*block_size, k, n]
+  """
+  shape = x.get_shape().as_list()
+  y = tf.reshape(x, [
+      shape[0], shape[1] // block_size, block_size, shape[2]
+  ])
+  y = tf.transpose(y, [0, 2, 1, 3])
+  y = tf.reshape(y, [
+      shape[0] * block_size, shape[1] // block_size, shape[2]
+  ])
+  y.set_shape([
+      mul_or_none(shape[0], block_size), mul_or_none(shape[1], 1. / block_size),
+      shape[2]
+  ])
+  return y
+
+def mul_or_none(a, b):
+  """Return the element wise multiplicative of the inputs.
+  If either input is None, we return None.
+  Args:
+    a: A tensor input.
+    b: Another tensor input with the same type as a.
+  Returns:
+    None if either input is None. Otherwise returns a * b.
+  """
+  if a is None or b is None:
+    return None
+  return a * b
+
+def batch_to_time(x, block_size):
+  """Inverse of `time_to_batch(x, block_size)`.
+  Args:
+    x: Tensor of shape [nb*block_size, k, n] for some natural number k.
+    block_size: number of time steps (i.e. size of dimension 1) in the output
+      tensor.
+  Returns:
+    Tensor of shape [nb, k*block_size, n].
+  """
+  shape = x.get_shape().as_list()
+  y = tf.reshape(x, [shape[0] // block_size, block_size, shape[1], shape[2]])
+  y = tf.transpose(y, [0, 2, 1, 3])
+  y = tf.reshape(y, [shape[0] // block_size, shape[1] * block_size, shape[2]])
+  y.set_shape([mul_or_none(shape[0], 1. / block_size),
+               mul_or_none(shape[1], block_size),
+               shape[2]])
+  return y
+
 def conv1d(x,
            num_filters,
            filter_length,
