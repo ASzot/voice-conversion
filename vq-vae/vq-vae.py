@@ -118,7 +118,7 @@ class VQVAE():
             _t = z_q
 
             num_stages = 10
-            num_layers = 30
+            num_layers = 30 # Could 
             filter_length = 3
             width = 512
             skip_width = 256
@@ -145,19 +145,21 @@ class VQVAE():
                 l += masked.conv1d(d, num_filters=width, filter_length=1, name='res_%d' % (i+1))
                 s += masked.conv1d(d, num_filters=skip_width, filter_length=1, name='skip_%d' % (i+1))
 
-                s = tf.nn.relu(s)
-                s = masked.conv1d(s, num_filters=skip_width, filter_length=1, name='out1')
-                s = self._condition(s, masked.conv1d(_t, num_filters=skip_width, filter_length=1, name='cond_map_out1'))
-                s = tf.nn.relu(s)
-                
+            s = tf.nn.relu(s)
+            s = masked.conv1d(s, num_filters=skip_width, filter_length=1, name='out1')
+            s = self._condition(s, masked.conv1d(_t, num_filters=skip_width, filter_length=1, name='cond_map_out1'))
+            s = tf.nn.relu(s)
+
+                # Not sure what to do here
 
 
-
-            for block in dec_spec:
-                _t = block(_t)
-            self.p_x_z = _t
+            # for block in dec_spec:
+            #     _t = block(_t)
+            self.p_x_z = s
 
             # Losses
+            # CHECK AXES FOR REDUCE MEAN ON RECON LOSS
+
             self.recon = tf.reduce_mean((self.p_x_z - x) ** 2, axis=[0,1,2,3])
             self.vq = tf.reduce_mean(
                 tf.norm(tf.stop_gradient(self.z_e) - z_q, axis=-1) ** 2,
