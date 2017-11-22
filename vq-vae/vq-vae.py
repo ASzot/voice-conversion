@@ -134,7 +134,22 @@ class VQVAE():
                 dilation = 2**(i % num_stages)
                 d = masked.conv1d(l, num_filters=2*width, filter_length=filter_length, 
                     dilation=dilation, name='dilatedconv_%d' % (i+1))
-                d = self._condition()
+                # This is where z_q is incorporated
+                d = self._condition(d, masked.conv1d(_t, num_filters=2*width, filter_length=1, name='cond_map_%d' % (i+1)))
+                assert d.get_shape().as_list()[2] % 2 == 0
+                m = d.get_shape().as_list()[2] // 2
+                d_sigmoid = tf.sigmoid(d[:, :, :m])
+                d_tanh = tf.tanh(d[:, :, m:])
+                d = d_sigmoid * d_tanh
+
+                l += masked.conv1d(d, num_filters=width, filter_length=1, name='res_%d' % (i+1))
+                s += masked.conv1d(d, num_filters=skip_width, filter_length=1, name='skip_%d' % (i+1))
+
+                s = tf.nn.relu(s)
+                s = masked.conv1d(s, num_filters=skip_width, filter_length=1, name='out1')
+                s = self._condition(s, masked.conv1d(_t, num_filters=skip_width, filter_length=1, name='cond_map_out1'))
+                s = tf.nn.relu(s)
+                
 
 
 
@@ -208,7 +223,7 @@ class VQVAE():
         x = tf.reshape(x, [mb, length, channels])
         x.set_shape([mb, length, channels])
         return x
-      
+
     def save(self, sess, dir, step=None):
         if(step is not None):
             self.saver.save(sess, dir + '/model.ckpt', global_step=step)
