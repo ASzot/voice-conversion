@@ -63,7 +63,6 @@ class VQVAE():
     def __init__(self, lr, global_step, beta,
                  x,K,D,
                  arch_fn,
-                 is_1d,
                  sess,
                  param_scope,
                  is_training=False):
@@ -287,9 +286,8 @@ if __name__ == "__main__":
     reader.start_threads(sess)
 
     try:
-        is_2d = True
         net = VQVAE(0.1, global_step, 0.25, audio_batch, 380, 256, _audio_arch,
-                is_2d, sess, params, True)
+                sess, params, True)
 
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         sess.run(init)
