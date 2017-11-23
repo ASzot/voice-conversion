@@ -28,28 +28,6 @@ def _audio_arch(d):
 
     return enc_spec, enc_param_scope, None, None
 
-def _mnist_arch(d):
-    with tf.variable_scope('enc') as enc_param_scope :
-        enc_spec = [
-            Conv2d('conv2d_1', 1, d // 4, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.relu(t),
-            Conv2d('conv2d_2',d // 4, d // 2, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.relu(t),
-            Conv2d('conv2d_3',d // 2, d, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.relu(t),
-        ]
-    with tf.variable_scope('dec') as dec_param_scope :
-        dec_spec = [
-            TransposedConv2d('tconv2d_1', d, d//2, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.relu(t),
-            TransposedConv2d('tconv2d_2', d//2, d//4, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.relu(t),
-            TransposedConv2d('tconv2d_3', d//4, 1, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.sigmoid(t),
-        ]
-    return enc_spec, enc_param_scope, dec_spec, dec_param_scope
-
-
 class VQVAE():
     """ Class for VQ-VAE architecture
 
