@@ -206,12 +206,14 @@ class VQVAE():
                 _t = block(_t)
             self.gen = _t
 
-        #save_vars = {('train/'+'/'.join(var.name.split('/')[1:])).split(':')[0] : var for var in
-        #             tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,param_scope.name) }
-        ##for name,var in save_vars.items():
-        ##    print(name,var)
+        all_save_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
+                param_scope.name) + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, dec_param_scope.name)
 
-        #self.saver = tf.train.Saver(var_list=save_vars,max_to_keep = 3)
+        save_vars = {('train/'+'/'.join(var.name.split('/')[1:])).split(':')[0] : var for var in all_save_vars) }
+        #for name,var in save_vars.items():
+        #    print(name,var)
+
+        self.saver = tf.train.Saver(var_list=save_vars)
 
     @staticmethod
     def _condition(x, encoding):
