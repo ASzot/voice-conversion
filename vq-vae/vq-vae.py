@@ -90,7 +90,7 @@ class VQVAE():
             # 3. add conditional on speaker id (can do after reconstruction)
 
             num_stages = 10 # Has to do with dilation stages
-            num_layers = 30 # Could lower the amount of layers
+            num_layers = 10 # Could lower the amount of layers
             filter_length = 3
             width = 512
             skip_width = 256
@@ -270,7 +270,7 @@ if __name__ == "__main__":
 
     try:
         # 100K iterations
-        MAX_STEPS = 1e5 # We can move this to another file if we want
+        MAX_STEPS = int(1e5) # We can move this to another file if we want
         log_dir = '.logdir'
         learning_rate = 0.1
         beta = 0.25
