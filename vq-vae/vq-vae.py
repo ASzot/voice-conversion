@@ -4,6 +4,8 @@ import tensorflow as tf
 from commons import masked
 import numpy as np
 from commons.ops import *
+import os
+import time
 import json
 from utils import mu_law
 
@@ -27,28 +29,6 @@ def _audio_arch(d):
         ]
 
     return enc_spec, enc_param_scope, None, None
-
-def _mnist_arch(d):
-    with tf.variable_scope('enc') as enc_param_scope :
-        enc_spec = [
-            Conv2d('conv2d_1', 1, d // 4, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.relu(t),
-            Conv2d('conv2d_2',d // 4, d // 2, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.relu(t),
-            Conv2d('conv2d_3',d // 2, d, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.relu(t),
-        ]
-    with tf.variable_scope('dec') as dec_param_scope :
-        dec_spec = [
-            TransposedConv2d('tconv2d_1', d, d//2, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.relu(t),
-            TransposedConv2d('tconv2d_2', d//2, d//4, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.relu(t),
-            TransposedConv2d('tconv2d_3', d//4, 1, data_format='NHWC'),
-            lambda t,**kwargs : tf.nn.sigmoid(t),
-        ]
-    return enc_spec, enc_param_scope, dec_spec, dec_param_scope
-
 
 class VQVAE():
     """ Class for VQ-VAE architecture
@@ -239,9 +219,9 @@ class VQVAE():
 
     def save(self, sess, dir, step=None):
         if(step is not None):
-            self.saver.save(sess, dir + '/model.ckpt', global_step=step)
+            self.saver.save(sess, os.path.join(dir, 'model.ckpt'), global_step=step)
         else :
-            self.saver.save(sess, dir + '/last.ckpt')
+            self.saver.save(sess, os.path.join(dir, 'last.ckpt'))
 
     def load(self,sess,model):
         self.saver.restore(sess, model)
@@ -261,7 +241,7 @@ if __name__ == "__main__":
         # zero.
         silence_threshold = None
 
-        AUDIO_FILE_PATH = '/Users/andrewszot/Downloads/VCTK-Corpus'
+        AUDIO_FILE_PATH = '/home/sriramso/data/VCTK-Corpus'
 
         gc_enabled = False
         reader = AudioReader(
@@ -289,12 +269,27 @@ if __name__ == "__main__":
     reader.start_threads(sess)
 
     try:
-        net = VQVAE(0.1, global_step, 0.25, audio_batch, 380, 256, _audio_arch,
+        # 100K iterations
+        MAX_STEPS = 1e5 # We can move this to another file if we want
+        log_dir = '.logdir'
+        learning_rate = 0.1
+        beta = 0.25
+
+
+        net = VQVAE(learning_rate, global_step, beta, audio_batch, 380, 256, _audio_arch,
                 sess, params, True)
 
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         sess.run(init)
 
+        for step in xrange(MAX_STEPS):
+            start_time = time.time()
+            _, loss_value = sess.run([net.train_op, net.loss])
+            duration = time.time() - start_time
+            if step % 100 == 0:
+                print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
+            if (step + 1) % 1000 == 0 or (step + 1) == MAX_STEPS:
+                net.save(sess, log_dir, step)
         #print(sess.run(net.x_scaled).shape)
         #print('Audio batch: ' + str(sess.run(audio_batch).shape))
         #print('z_q: ' + str(sess.run(net.z_q).shape))
@@ -304,11 +299,10 @@ if __name__ == "__main__":
         # Introduce a line break after ^C is displayed so save message
         # is on its own line.
         print()
+        # net.save(sess, log_dir, step)
     finally:
         coord.request_stop()
         coord.join(threads)
-
-
 
 
     #print(sess.run(net.train_op, feed_dict={x:np.random.random((10,32,32,1))}))
