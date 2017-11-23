@@ -189,7 +189,7 @@ class VQVAE():
         all_save_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
                 param_scope.name) + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, dec_param_scope.name)
 
-        save_vars = {('train/'+'/'.join(var.name.split('/')[1:])).split(':')[0] : var for var in all_save_vars) }
+        save_vars = {('train/'+'/'.join(var.name.split('/')[1:])).split(':')[0] : var for var in all_save_vars }
         #for name,var in save_vars.items():
         #    print(name,var)
 
@@ -241,7 +241,8 @@ if __name__ == "__main__":
         # zero.
         silence_threshold = None
 
-        AUDIO_FILE_PATH = '/home/sriramso/data/VCTK-Corpus'
+        #AUDIO_FILE_PATH = '/home/sriramso/data/VCTK-Corpus'
+        AUDIO_FILE_PATH = '/mnt/disks/hdd/VCTK-Corpus'
 
         gc_enabled = False
         reader = AudioReader(
@@ -271,7 +272,7 @@ if __name__ == "__main__":
     try:
         # 100K iterations
         MAX_STEPS = int(1e5) # We can move this to another file if we want
-        log_dir = '.logdir'
+        log_dir = './logdir'
         learning_rate = 0.1
         beta = 0.25
 
@@ -282,7 +283,7 @@ if __name__ == "__main__":
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         sess.run(init)
 
-        for step in xrange(MAX_STEPS):
+        for step in xrange(int(MAX_STEPS)):
             start_time = time.time()
             _, loss_value = sess.run([net.train_op, net.loss])
             duration = time.time() - start_time
