@@ -283,7 +283,7 @@ if __name__ == "__main__":
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         sess.run(init)
 
-        for step in xrange(MAX_STEPS):
+        for step in xrange(int(MAX_STEPS)):
             start_time = time.time()
             _, loss_value = sess.run([net.train_op, net.loss])
             duration = time.time() - start_time
