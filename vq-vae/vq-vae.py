@@ -4,6 +4,8 @@ import tensorflow as tf
 from commons import masked
 import numpy as np
 from commons.ops import *
+import os
+import time
 import json
 from utils import mu_law
 
@@ -215,9 +217,9 @@ class VQVAE():
 
     def save(self, sess, dir, step=None):
         if(step is not None):
-            self.saver.save(sess, dir + '/model.ckpt', global_step=step)
+            self.saver.save(sess, os.path.join(dir, 'model.ckpt'), global_step=step)
         else :
-            self.saver.save(sess, dir + '/last.ckpt')
+            self.saver.save(sess, os.path.join(dir, 'last.ckpt'))
 
     def load(self,sess,model):
         self.saver.restore(sess, model)
@@ -237,7 +239,7 @@ if __name__ == "__main__":
         # zero.
         silence_threshold = None
 
-        AUDIO_FILE_PATH = '/Users/andrewszot/Downloads/VCTK-Corpus'
+        AUDIO_FILE_PATH = '/home/sriramso/data/VCTK-Corpus'
 
         gc_enabled = False
         reader = AudioReader(
@@ -265,12 +267,21 @@ if __name__ == "__main__":
     reader.start_threads(sess)
 
     try:
+        MAX_STEPS = 1e5 # We can move this to another file if we want
+        log_dir = '.logdir'
         net = VQVAE(0.1, global_step, 0.25, audio_batch, 380, 256, _audio_arch,
                 sess, params, True)
 
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         sess.run(init)
-
+        for step in xrange(MAX_STEPS):
+            start_time = time.time()
+            _, loss_value = sess.run([net.train_op, net.loss])
+            duration = time.time() - start_time
+            if step % 100 == 0:
+                print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
+            if (step + 1) % 1000 == 0 or (step + 1) == MAX_STEPS:
+                net.save(sess, log_dir, step)
         #print(sess.run(net.x_scaled).shape)
         #print('Audio batch: ' + str(sess.run(audio_batch).shape))
         #print('z_q: ' + str(sess.run(net.z_q).shape))
@@ -280,11 +291,10 @@ if __name__ == "__main__":
         # Introduce a line break after ^C is displayed so save message
         # is on its own line.
         print()
+        # net.save(sess, log_dir, step)
     finally:
         coord.request_stop()
         coord.join(threads)
-
-
 
 
     #print(sess.run(net.train_op, feed_dict={x:np.random.random((10,32,32,1))}))
