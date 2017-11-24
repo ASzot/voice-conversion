@@ -66,10 +66,10 @@ try:
     sess.run(init)
     print('Built okay!')
 
-    # Actually train
-    #for step in xrange(int(MAX_STEPS)):
-    #    loss, _ = sess.run([output['loss'], output['train_op'])
-    #    print('%i: %.2f' % loss)
+     Actually train
+    for step in xrange(int(MAX_STEPS)):
+        loss, _ = sess.run([output['loss'], output['train_op'])
+        print('%i: %.2f' % loss)
 
 except KeyboardInterrupt:
     # Introduce a line break after ^C is displayed so save message
