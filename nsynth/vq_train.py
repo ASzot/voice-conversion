@@ -23,8 +23,8 @@ with tf.name_scope('create_inputs'):
     silence_threshold = None
 
     #AUDIO_FILE_PATH = '/home/sriramso/data/VCTK-Corpus'
-    #AUDIO_FILE_PATH = '/home/andrewszot/VCTK-Corpus'
-    AUDIO_FILE_PATH = '/Users/andrewszot/Downloads/VCTK-Corpus'
+    AUDIO_FILE_PATH = '/home/andrewszot/VCTK-Corpus'
+    #AUDIO_FILE_PATH = '/Users/andrewszot/Downloads/VCTK-Corpus'
 
     gc_enabled = False
     reader = AudioReader(
@@ -59,16 +59,16 @@ try:
 
     model = ModelConfig()
     print('Preparing to build fowards')
-    output = model.build(audio_batch, K=380, D=256, beta=0.25)
+    output = model.build(audio_batch, K=380, D=256, beta=0.25, global_step=global_step)
 
     print('Preparing to init variables')
     init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
     sess.run(init)
     print('Built okay!')
 
-     Actually train
+    # Actually train
     for step in xrange(int(MAX_STEPS)):
-        loss, _ = sess.run([output['loss'], output['train_op'])
+        loss, _ = sess.run([output['loss'], output['train_op']])
         print('%i: %.2f' % loss)
 
 except KeyboardInterrupt:
