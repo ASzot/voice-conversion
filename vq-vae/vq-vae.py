@@ -59,10 +59,14 @@ class VQVAE():
             # Why are we not expanding dim here? b/c we are defaulting to batch size of 1?
             #self.x_scaled = x_scaled
 
+            self.input_mean = tf.reduce_mean(x_scaled)
+
             _t = x_scaled
             for block in enc_spec :
                 _t = block(_t)
             z_e = _t
+
+            self.z_e_mean = tf.reduce_mean(z_e)
 
             # Middle Area (Compression or Discretize)
             # TODO: Gross.. use brodcast instead!
@@ -74,6 +78,8 @@ class VQVAE():
             self.k = k
             z_q = tf.gather(embeds, k)
 
+            self.z_q_mean = tf.reduce_mean(z_q)
+
             self.z_e = z_e # -> [batch,latent_h,latent_w,D]
             self.k = k
             self.z_q = z_q # -> [batch,latent_h,latent_w,D]
@@ -82,7 +88,8 @@ class VQVAE():
             #return
 
             # Decoder Pass
-            _t = z_q
+            # Copy just to be safe...?
+            _t = tf.identity(z_q)
 
             # THINGS TO DO
             # 1. check if x is right dimension, no need to expand dim?
@@ -90,7 +97,7 @@ class VQVAE():
             # 3. add conditional on speaker id (can do after reconstruction)
 
             num_stages = 10 # Has to do with dilation stages
-            num_layers = 10 # Could lower the amount of layers
+            num_layers = 1 # Could lower the amount of layers
             filter_length = 3
             width = 512
             skip_width = 256
@@ -98,10 +105,19 @@ class VQVAE():
             with tf.variable_scope('dec') as dec_param_scope:
                 # May need to have x be an expanded dim
                 l = masked.shift_right(x_scaled)
-                l = masked.conv1d(l, num_filters=width, filter_length=filter_length, name='startconv_dec')
+
+                self.l0 = tf.reduce_mean(tf.identity(l))
+
+                l, W_mean, b_mean = masked.conv1d_log(l, num_filters=width, filter_length=filter_length, name='startconv_dec')
+                self.W_mean = W_mean
+                self.b_mean = b_mean
+
+                self.l1 = tf.reduce_mean(tf.identity(l))
 
                 # Skip connection
                 s = masked.conv1d(l, num_filters=skip_width, filter_length=1, name='skip_start_dec')
+
+                self.s0 = tf.reduce_mean(tf.identity(s))
 
                 # Residual blocks with skip connection
                 for i in xrange(num_layers):
@@ -109,35 +125,47 @@ class VQVAE():
                     d = masked.conv1d(l, num_filters = 2 * width, filter_length = filter_length,
                         dilation = dilation, name = 'dilatedconv_%d' % (i+1))
 
+                    self.d0 = tf.reduce_mean(tf.identity(d))
+
                     # Condition on z_q
                     d = self._condition(d, masked.conv1d(_t, num_filters=2*width, filter_length=1, name='cond_map_%d' % (i+1)))
+                    self.d1 = tf.reduce_mean(tf.identity(d))
+
                     assert d.get_shape().as_list()[2] % 2 == 0
+
                     m = d.get_shape().as_list()[2] // 2
                     d_sigmoid = tf.sigmoid(d[:, :, :m])
                     d_tanh = tf.tanh(d[:, :, m:])
                     d = d_sigmoid * d_tanh
 
+                    self.d2 = tf.reduce_mean(tf.identity(d))
+
                     l += masked.conv1d(d, num_filters=width, filter_length=1, name='res_%d' % (i+1))
+                    self.l2 = tf.reduce_mean(tf.identity(l))
+
                     s += masked.conv1d(d, num_filters=skip_width, filter_length=1, name='skip_%d' % (i+1))
+                    self.s1 = tf.reduce_mean(tf.identity(s))
 
                 s = tf.nn.relu(s)
                 s = masked.conv1d(s, num_filters=skip_width, filter_length=1, name='out1')
+                self.s2 = tf.reduce_mean(tf.identity(s))
+
                 # Condition on z_q again.
                 s = self._condition(s, masked.conv1d(_t, num_filters=skip_width, filter_length=1, name='cond_map_out1'))
                 s = tf.nn.relu(s)
+                self.s3 = tf.reduce_mean(tf.identity(s))
 
-                self.p_x_z = s
                 # Should this parameter be trainable...?
-                logits = masked.conv1d(self.p_x_z, num_filters=256, filter_length=1, name='logits')
+                logits = masked.conv1d(s, num_filters=256, filter_length=1, name='logits')
+                self.logits_mean = tf.reduce_mean(tf.identity(logits))
 
             # Losses
             # CHECK AXES FOR REDUCE MEAN ON RECON LOSS
             logits = tf.reshape(logits, [-1, 256])
+
             #probs = tf.nn.softmax(logits, name='softmax')
             x_indices = tf.cast(tf.reshape(x_quantized, [-1]), tf.int32) + 128
-
-            self.logits = logits
-            self.x_indices = x_indices
+            self.indices_mean = tf.reduce_mean(x_indices)
 
             self.recon = tf.reduce_mean(
                     tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -160,7 +188,7 @@ class VQVAE():
             # TODO: is it correct impl?
             # it seems tf.reduce_prod(tf.shape(self.z_q)[1:2]) should be multipled
             # in front of log(1/K) if we assume uniform prior on z.
-            self.nll = -1.*(tf.reduce_mean(tf.log(self.p_x_z),axis=[1,2]) + tf.log(1/tf.cast(K,tf.float32)))/tf.log(2.)
+            #self.nll = -1.*(tf.reduce_mean(tf.log(self.p_x_z),axis=[1,2]) + tf.log(1/tf.cast(K,tf.float32)))/tf.log(2.)
 
         if( is_training ):
             with tf.variable_scope('backward'):
@@ -242,7 +270,7 @@ if __name__ == "__main__":
         silence_threshold = None
 
         #AUDIO_FILE_PATH = '/home/sriramso/data/VCTK-Corpus'
-        AUDIO_FILE_PATH = '/mnt/disks/hdd/VCTK-Corpus'
+        AUDIO_FILE_PATH = '/home/andrewszot/VCTK-Corpus'
 
         gc_enabled = False
         reader = AudioReader(
@@ -273,7 +301,7 @@ if __name__ == "__main__":
         # 100K iterations
         MAX_STEPS = int(1e5) # We can move this to another file if we want
         log_dir = './logdir'
-        learning_rate = 0.1
+        learning_rate = 0.0001
         beta = 0.25
 
 
@@ -285,11 +313,24 @@ if __name__ == "__main__":
 
         for step in xrange(int(MAX_STEPS)):
             start_time = time.time()
-            _, loss_value = sess.run([net.train_op, net.loss])
+            _, overall_loss, recon_loss, vq_loss, commit_loss, z_q_mean, z_e_mean, input_mean, logits_mean, indices_mean, l0, l1, l2, d0, d1, d2, s0, s1, s2, s3, W_mean, b_mean = sess.run([net.train_op,
+                net.loss, net.recon, net.vq, net.commit, net.z_q_mean,
+                net.z_e_mean, net.input_mean, net.logits_mean,
+                net.indices_mean, net.l0, net.l1, net.l2, net.d0, net.d1,
+                net.d2, net.s0, net.s1, net.s2, net.s3, net.W_mean, net.b_mean])
+
             duration = time.time() - start_time
-            if step % 100 == 0:
-                print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
+            print('')
+            print('Step %d: overall = %.2f, recon = %.2f, vq = %.2f, commit = %.2f (%.3f sec)' %
+                    (step, overall_loss, recon_loss, vq_loss, commit_loss, duration))
+            print('z_q_mean: %.2f, z_e_mean: %.2f, input_mean: %.2f, logits_mean: %.2f, indices_mean: %.2f, ' % (z_q_mean, z_e_mean,
+                input_mean, logits_mean, indices_mean))
+
+            print('l0: %.2f, l1: %.2f, l2: %.2f, d0: %.2f, d1: %.2f, d2: %.2f, s0: %.2f, s1: %.2f, s2: %.2f, s3: %.2f, W: %.2f, b: %.2f' % (l0, l1, l2, d0,
+                        d1, d2, s0, s1, s2, s3, W_mean, b_mean))
+
             if (step + 1) % 1000 == 0 or (step + 1) == MAX_STEPS:
+                print('Saving!')
                 net.save(sess, log_dir, step)
         #print(sess.run(net.x_scaled).shape)
         #print('Audio batch: ' + str(sess.run(audio_batch).shape))
