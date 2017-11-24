@@ -75,13 +75,15 @@ class Config(object):
       A dict of outputs that includes the 'predictions', 'loss', the 'encoding',
       the 'quantized_input', and whatever metrics we want to track for eval.
     """
+    # Decoder
     num_stages = 10
-    num_layers = 10
+    num_layers = 5
     filter_length = 3
     width = 512
     skip_width = 256
+    # Encoder
     ae_num_stages = 10
-    ae_num_layers = 30
+    ae_num_layers = 5
     ae_filter_length = 3
     ae_width = 128
     self.ae_bottleneck_width = D
