@@ -51,8 +51,12 @@ sess = tf.Session(config=tf.ConfigProto(log_device_placement=False))
 threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 reader.start_threads(sess)
 
+saver = tf.train.Saver()
+
 try:
+    # 100K
     MAX_STEPS = int(1e5) # We can move this to another file if we want
+    SAVE_INTERVAL = 10000
     log_dir = './logdir'
     learning_rate = 0.0001
     beta = 0.25
@@ -70,6 +74,11 @@ try:
     for step in range(MAX_STEPS):
         loss, _ = sess.run([output['loss'], output['train_op']])
         print('%i: %.2f' % (step, loss))
+
+        if (step != 0 and step % SAVE_INTERVAL == 0):
+            print('Saving!')
+            saver.save(sess, log_dir + "/model%i.ckpt" % step,
+                    global_step=step)
 
 except KeyboardInterrupt:
     # Introduce a line break after ^C is displayed so save message
