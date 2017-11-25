@@ -77,18 +77,18 @@ class Config(object):
     """
     # Decoder
     num_stages = 10
-    num_layers = 5
+    num_layers = 10
     filter_length = 3
     width = 512
     skip_width = 256
     # Encoder
     ae_num_stages = 10
-    ae_num_layers = 5
+    ae_num_layers = 10
     ae_filter_length = 3
     ae_width = 128
     self.ae_bottleneck_width = D
     self.beta = beta
-    lr = 0.001
+    lr = 2e-4
 
     with tf.variable_scope('forward'):
         # Encode the source with 8-bit Mu-Law.
@@ -114,7 +114,8 @@ class Config(object):
                 name='ae_startconv')
 
             for num_layer in range(ae_num_layers):
-              dilation = 2**(num_layer % ae_num_stages)
+              #dilation = 2**(num_layer % ae_num_stages)
+              dilation = 1
               d = tf.nn.relu(en)
               d = masked.conv1d(
                   d,
@@ -228,22 +229,48 @@ class Config(object):
             tf.norm(self.z_e - tf.stop_gradient(z_q),axis=-1)**2,
             axis=[0,1])
         self.loss = self.recon + self.vq + beta * self.commit
+        #self.loss = self.recon
 
     with tf.variable_scope('backward'):
       # Decoder grads
       decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.dec_param_scope.name)
-      decoder_grads = list(zip(tf.gradients(self.loss,decoder_vars),decoder_vars))
+      decoder_grads = list(zip(
+          tf.clip_by_global_norm(tf.gradients(self.loss,decoder_vars), 5.0)[0],
+          decoder_vars))
+      #decoder_grads = [(tf.clip_by_value(grad, -1.0, 1.0), var) for grad, var in
+      #    decoder_grads if grad is not None]
 
       # Encoder Grads
       encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.enc_param_scope.name)
+
       grad_z = tf.gradients(self.recon,self.z_q)
-      encoder_grads = [(tf.gradients(self.z_e,var,grad_z)[0]+self.beta*tf.gradients(self.commit,var)[0],var) for var in encoder_vars]
+
+      grads = [tf.gradients(self.z_e,var,grad_z)[0] + self.beta*tf.gradients(self.commit,var)[0] for var in encoder_vars]
+      grads, _ = tf.clip_by_global_norm(grads, 5.0)
+      encoder_grads = list(zip(grads, encoder_vars))
 
       # Embedding Grads
-      embed_grads = list(zip(tf.gradients(self.vq,embeds),[embeds]))
+      embed_grads = list(zip(
+          tf.clip_by_global_norm(tf.gradients(self.vq,embeds), 5.0)[0],
+          [embeds]))
 
-      optimizer = tf.train.AdamOptimizer(lr)
-      self.train_op= optimizer.apply_gradients(decoder_grads+encoder_grads+embed_grads,global_step=global_step)
+      #ema = tf.train.ExponentialMovingAverage(decay=0.9999,
+      #        num_updates=global_step)
+
+      #optimizer = tf.train.SyncReplicasOptimizer(
+      #        tf.train.AdamOptimizer(lr, epsilon=1e-8),
+      #        1,
+      #        total_num_replicas=1,
+      #        variable_averages=ema,
+      #        variables_to_average=tf.trainable_variables())
+      optimizer = tf.train.AdamOptimizer(lr, epsilon=1e-8)
+
+      self.train_op= optimizer.apply_gradients(
+              decoder_grads + encoder_grads + embed_grads,
+              global_step=global_step)
+
+      #self.train_op = optimizer.minimize(self.loss, global_step=global_step,
+      #        name="train", colocate_gradients_with_ops=True)
 
     return {
         'predictions': probs,
