@@ -113,8 +113,8 @@ class Model:
                                 is_training=self.is_training)  # (N, T, E/2)
 
             # CBHG1: mel-scale
-            pred_mel = cbhg(prenet_out, hp.Train2.num_banks, hp.Train2.hidden_units // 2, hp.Train2.num_highway_blocks, hp.Train2.norm_type, self.is_training, scope="cbhg1")
-            pred_mel = tf.layers.dense(pred_mel, self.y_mel.shape[-1])  # log magnitude: (N, T, n_mels)
+            # pred_mel = cbhg(prenet_out, hp.Train2.num_banks, hp.Train2.hidden_units // 2, hp.Train2.num_highway_blocks, hp.Train2.norm_type, self.is_training, scope="cbhg1")
+            # pred_mel = tf.layers.dense(pred_mel, self.y_mel.shape[-1])  # log magnitude: (N, T, n_mels)
 
             # CBHG2: linear-scale
             pred_spec = tf.layers.dense(pred_mel, hp.Train2.hidden_units // 2)  # log magnitude: (N, T, n_mels)
