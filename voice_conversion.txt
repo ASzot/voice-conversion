@@ -1,0 +1,52 @@
+TITLE:Voice Conversion
+|
+NEXT:
+|
+PREV:
+|
+Date:Nov 27, 2017
+|
+META: Efforts in voice conversion.
+<!--Note to self, for each section, add pictures describing model, key equations/ modifications, and results (audio) and training graphs/ intermediate results like phone activations-->
+<p>
+  Define the problem, motivation, show some cool things in the field
+</p>
+
+<p>
+  Maybe a slight detour into style transfer
+</p
+
+<p>
+  Data
+</p>
+
+<p>
+  Baseline: CycleGAN
+</p>
+
+<p>
+  VQ-VAE, from VAE, from wavenet
+</p>
+
+<p>
+  Speech Recognition + Speech Synthesis uses phones and audio features, Tacotron's CBHG
+</p>
+
+
+<blockquote>
+<audio src="/audio/sample_file.wav" controls="controls"></audio>
+</blockquote>
+
+<!--Possible styling below in a .css file for audio-->
+<!--
+audio {
+	width: 300px;
+	height: 32px;
+}
+
+blockquote {
+	color: #7a7a7a;
+	padding: .5rem 1rem;
+	margin: .8rem 0;
+	border-left: .25rem solid #e5e5e5;
+} -->
